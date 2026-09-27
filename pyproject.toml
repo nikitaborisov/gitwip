@@ -1,0 +1,16 @@
+[project]
+name = "wip-snapshot"
+version = "0.1.0"
+description = "Snapshot dirty working trees onto wip/<branch> and push."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+wip-snapshot = "wip_snapshot:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+include = ["wip_snapshot.py"]
