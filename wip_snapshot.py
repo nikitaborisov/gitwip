@@ -105,7 +105,6 @@ def snapshot(repo: Path) -> None:
     # Tracked files only: untracked never counts as dirty and is never added.
     status = g.run("status", "--porcelain", "--untracked-files=no")
     if not status:
-        log(f"CLEAN    {name}")
         return
 
     head = g.rev("HEAD")
@@ -136,7 +135,6 @@ def snapshot(repo: Path) -> None:
         return
 
     if wip and g.rev(f"{wip}^{{tree}}") == tree:
-        log(f"NOCHANGE {name} ({branch})")
         return
 
     # Parents: last snapshot on this wip branch, plus HEAD if it has moved on.
