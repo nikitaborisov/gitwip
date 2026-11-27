@@ -7,10 +7,11 @@ dependencies = []
 
 [project.scripts]
 wip-snapshot = "wip_snapshot:main"
+git-cleanup = "git_cleanup:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-include = ["wip_snapshot.py"]
+include = ["wip_snapshot.py", "git_cleanup.py"]
