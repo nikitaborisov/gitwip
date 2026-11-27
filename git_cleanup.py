@@ -5,7 +5,9 @@ git_cleanup.py — report repos that need attention; optionally delete dead ones
 Goes through every immediate subdirectory of ~/git that has a .git and lists:
 
   unsynced   uncommitted changes (incl. untracked files), a stash, no remote,
-             or commits on a local branch / HEAD that are on no remote
+             or commits on a local branch / HEAD that are on no remote.
+             Repos with submodules or linked worktrees always count as
+             unsynced, since their extra state is not inspected.
   stale      nothing has changed in more than --days (default 30)
 
 "Last change" is the newest of: the latest commit on any local branch, the
@@ -95,7 +97,8 @@ def inspect(repo: Path) -> Report:
         return rep
 
     # --- uncommitted ---
-    status = git(repo, "status", "--porcelain", "-z", "--ignored")
+    # Explicit --untracked-files so status.showUntrackedFiles=no can't hide them.
+    status = git(repo, "status", "--porcelain", "-z", "--ignored", "--untracked-files=normal")
     if status is None:
         rep.reasons.append("git status failed")
     else:
@@ -123,8 +126,9 @@ def inspect(repo: Path) -> Report:
         rep.reasons.append("no remote")
     elif has_head:
         ahead = []
-        branches = (git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads") or "").split("\n")
-        for ref, label in [(f"refs/heads/{b}", b) for b in branches if b] + [("HEAD", "HEAD")]:
+        # Full ref names: the short form is "heads/x" when a tag is also named x.
+        refs = (git(repo, "for-each-ref", "--format=%(refname)", "refs/heads") or "").split("\n")
+        for ref, label in [(r, r.removeprefix("refs/heads/")) for r in refs if r] + [("HEAD", "HEAD")]:
             n = git(repo, "rev-list", "--count", ref, "--not", "--remotes")
             if n is None:
                 ahead.append(f"{label} ?")
@@ -138,6 +142,12 @@ def inspect(repo: Path) -> Report:
 
     if len((git(repo, "worktree", "list", "--porcelain") or "").split("\n\n")) > 1:
         rep.reasons.append("has linked worktrees")
+    # Submodules keep their own stashes and branches (under .git/modules) that
+    # none of the checks above look at, so never treat their parent as synced.
+    modules = repo / ".git" / "modules"
+    initialized = [l for l in (git(repo, "submodule", "status") or "").split("\n") if l and not l.startswith("-")]
+    if initialized or (modules.is_dir() and any(modules.iterdir())):
+        rep.reasons.append("has submodules")
     if not (repo / ".git").is_dir() or repo.is_symlink():
         rep.reasons.append("not a plain clone (symlink or .git file)")
 
